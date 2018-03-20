@@ -13,7 +13,7 @@ import org.junit.runner.RunWith
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 @RunWith(AndroidJUnit4::class)
-class ExampleInstrumentedTest {
+class ObfuscatedPreferencesInstrumentedTest {
 
     private val appContext = InstrumentationRegistry.getTargetContext()
     private val obfuscatedPreferences = ObfuscatedPreferences(appContext, "test", Context.MODE_PRIVATE)
@@ -143,7 +143,7 @@ class ExampleInstrumentedTest {
 
     @Test
     fun testStringSet1() {
-        val expect = mutableSetOf("1", "2", "3")
+        val expect: MutableSet<String?> = mutableSetOf("1", "2", "3")
         val defValues = mutableSetOf("4", "5", "6")
         obfuscatedPreferences.edit().clear().apply()
 
@@ -160,7 +160,7 @@ class ExampleInstrumentedTest {
 
     @Test
     fun testStringSet2() {
-        val expect = mutableSetOf("1", "2", "3")
+        val expect: MutableSet<String?> = mutableSetOf("1", "2", "3")
         val defValues = null
         obfuscatedPreferences.edit().clear().apply()
 
@@ -191,5 +191,34 @@ class ExampleInstrumentedTest {
 
         obfuscatedPreferences.edit().clear().apply()
     }
+
+
+    @Test
+    fun testGetAll() {
+
+        obfuscatedPreferences.edit().clear().apply()
+
+
+
+        obfuscatedPreferences.edit()
+                .putStringSet("0", mutableSetOf("1", "2", "3", null, "null"))
+                .putInt("1", 1)
+                .putFloat("2", 2.0f)
+                .putLong("3", 3L)
+                .putString("4", "4")
+                .putBoolean("5", false)
+                .apply()
+
+        val map = obfuscatedPreferences.all
+        assertTrue(map["0"] is Set<*> && map["0"]!! == mutableSetOf("1", "2", "3", null, "null"))
+        assertTrue(map["1"] is Int && map["1"] == 1)
+        assertTrue(map["2"] is Float && map["2"] == 2.0f)
+        assertTrue(map["3"] is Long && map["3"] == 3L)
+        assertTrue(map["4"] is String && map["4"] == "4")
+        assertTrue(map["5"] is Boolean && map["5"] == false)
+
+
+    }
+
 
 }
