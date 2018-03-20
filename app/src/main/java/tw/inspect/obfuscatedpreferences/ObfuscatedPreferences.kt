@@ -79,9 +79,9 @@ class ObfuscatedPreferences(
                     ?.run { unBox(decrypt(aesKey, this)) as Float }
                     ?: defValue
 
-    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? =
+    override fun getStringSet(key: String?, defValues: MutableSet<String?>?): MutableSet<String?>? =
             sharedPreferences.getString(encrypt(aesKey, Gson().toJson(key)), null)
-                    ?.run { unBox(decrypt(aesKey, this)) as MutableSet<String> }
+                    ?.run { unBox(decrypt(aesKey, this)) as MutableSet<String?> }
                     ?: defValues
 
     override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
@@ -94,19 +94,10 @@ class ObfuscatedPreferences(
                     ?: defValue
 
 
-    fun <T : Any> box(value: T) = (value::class.javaObjectType.toString() + "0" + Gson().toJson(value))
-    private fun unBox(string: String): Any {
-        val i = string.indexOf('0')
-        val v = string.substring(i + 1, string.length)
+    fun <T : Any> box(value: T) = (value::class.javaObjectType.name + "0" + Gson().toJson(value))
+    private fun unBox(string: String): Any = string.indexOf('0').run {
 
-        return when (string.substring(0, i)) {
-            Int::class.javaObjectType.toString() -> Gson().fromJson<Int>(v)
-            Float::class.javaObjectType.toString() -> Gson().fromJson<Float>(v)
-            Boolean::class.javaObjectType.toString() -> Gson().fromJson<Boolean>(v)
-            Long::class.javaObjectType.toString() -> Gson().fromJson<Long>(v)
-            String::class.javaObjectType.toString() -> Gson().fromJson<String>(v)
-            else -> Gson().fromJson<MutableSet<String>>(v)
-        }
+        Gson().fromJson(string.substring(this + 1, string.length), Class.forName(string.substring(0, this)))
 
     }
 

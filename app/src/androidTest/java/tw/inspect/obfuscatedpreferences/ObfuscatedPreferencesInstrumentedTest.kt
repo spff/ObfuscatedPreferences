@@ -144,7 +144,7 @@ class ObfuscatedPreferencesInstrumentedTest {
     @Test
     fun testStringSet1() {
         val expect: MutableSet<String?> = mutableSetOf("1", "2", "3")
-        val defValues = mutableSetOf("4", "5", "6")
+        val defValues = mutableSetOf<String?>("4", "5", "6")
         obfuscatedPreferences.edit().clear().apply()
 
         assertFalse(obfuscatedPreferences.contains(key))
@@ -178,7 +178,7 @@ class ObfuscatedPreferencesInstrumentedTest {
     @Test
     fun testStringSet3() {
         val expect = null
-        val defValues = mutableSetOf("4", "5", "6")
+        val defValues = mutableSetOf<String?>("4", "5", "6")
         obfuscatedPreferences.edit().clear().apply()
 
         assertFalse(obfuscatedPreferences.contains(key))
@@ -210,7 +210,7 @@ class ObfuscatedPreferencesInstrumentedTest {
                 .apply()
 
         val map = obfuscatedPreferences.all
-        assertTrue(map["0"] is Set<*> && map["0"]!! == mutableSetOf("1", "2", "3", null, "null"))
+        assertTrue(map["0"] is MutableSet<*> && map["0"]!! == mutableSetOf("1", "2", "3", null, "null"))
         assertTrue(map["1"] is Int && map["1"] == 1)
         assertTrue(map["2"] is Float && map["2"] == 2.0f)
         assertTrue(map["3"] is Long && map["3"] == 3L)
@@ -218,7 +218,13 @@ class ObfuscatedPreferencesInstrumentedTest {
         assertTrue(map["5"] is Boolean && map["5"] == false)
 
 
+        //val a: Any = Gson().fromJson(Gson().toJson(object : TypeToken<String>(){}), Any::class.java)
+        //Log.e("test", a.toString())
+        //Log.e("test", Gson().toJson(object : TypeToken<Set<Map<Int, String>>>(){}.rawType))
+
+
     }
+
 
 
 }
