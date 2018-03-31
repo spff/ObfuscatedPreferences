@@ -5,7 +5,9 @@ import android.content.SharedPreferences
 import android.util.Base64
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.lang.ref.WeakReference
 import java.nio.charset.Charset
+import java.util.*
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -18,6 +20,26 @@ class ObfuscatedPreferences(
         private val aesKey: String = "01234567890123456789012345678901") : SharedPreferences {
 
     private val sharedPreferences = context.getSharedPreferences(string, mode)
+
+
+    companion object {
+        /**
+         * Put Listeners in companion object
+         *
+         * The mListeners is stored as non-static variable in SharedPreferences, and
+         * ContextImpl caches the result of getSharedPreferences() into a static cache.
+         *
+         * That means, the listeners is listening the same SharedPreferences file's change,
+         * and there is going to be only one instance per same SharedPreferences file.
+         *
+         * */
+
+        private val listeners = mutableMapOf<
+                SharedPreferences,
+                WeakHashMap<
+                        SharedPreferences.OnSharedPreferenceChangeListener,
+                        SharedPreferences.OnSharedPreferenceChangeListener>>()
+    }
 
     private fun encrypt(key: String, data: String): String {
 
@@ -50,8 +72,19 @@ class ObfuscatedPreferences(
                     ?.run { unBox(decrypt(aesKey, this)) as Boolean }
                     ?: defValue
 
-    override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        //synchronizing listeners instead of this is because there might be different
+        //ObfuscatedPreferences which are associated with the same SharedPreferences
+        synchronized(listeners) {
+            listeners[sharedPreferences]?.also {
+                sharedPreferences.unregisterOnSharedPreferenceChangeListener(it[listener])
+                it.remove(listener)
+                if (it.isEmpty()) {
+                    listeners.remove(sharedPreferences)
+                }
+            }
+        }
+
     }
 
     override fun getInt(key: String?, defValue: Int) =
@@ -84,8 +117,28 @@ class ObfuscatedPreferences(
                     ?.run { unBox(decrypt(aesKey, this)) as MutableSet<String?> }
                     ?: defValues
 
-    override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        //synchronizing listeners instead of this is because there might be different
+        //ObfuscatedPreferences which are associated with the same SharedPreferences
+        synchronized(listeners) {
+
+            SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
+                WeakReference<SharedPreferences.OnSharedPreferenceChangeListener>(listener).get()
+                        ?.onSharedPreferenceChanged(sharedPreferences, Gson().fromJson(decrypt(aesKey, key)))
+            }.also {
+
+
+                if (listeners[sharedPreferences] == null) {
+                    listeners[sharedPreferences] = WeakHashMap()
+                }
+                if (listeners[sharedPreferences]!!.contains(listener)) {
+                    return
+                }
+
+                sharedPreferences.registerOnSharedPreferenceChangeListener(it)
+                listeners[sharedPreferences]!![listener] = it
+            }
+        }
     }
 
     override fun getString(key: String?, defValue: String?) =
@@ -94,7 +147,7 @@ class ObfuscatedPreferences(
                     ?: defValue
 
 
-    fun <T : Any> box(value: T) = (value::class.javaObjectType.name + "0" + Gson().toJson(value))
+    fun <T : Any> box(value: T) = (value::class.java.name + "0" + Gson().toJson(value))
     private fun unBox(string: String): Any = string.indexOf('0').run {
 
         Gson().fromJson(string.substring(this + 1, string.length), Class.forName(string.substring(0, this)))
@@ -147,8 +200,8 @@ class ObfuscatedPreferences(
             )
 
         }
-
     }
+
 }
 
 
