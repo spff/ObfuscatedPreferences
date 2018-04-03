@@ -231,16 +231,6 @@ class ObfuscatedPreferencesInstrumentedTest {
 
         var i = 0
 
-        //Should not use this, use the below one instead.
-        //The lamdba is going to be generate each time accessed.
-        //the onSharedPreferenceChangeListener will be copied to different address
-        /*
-        val onSharedPreferenceChangeListener = { _: SharedPreferences?, key: String? ->
-            i++
-            Log.e("qqq", key + i)
-            Unit
-        }
-        */
         val onSharedPreferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> i++ }
 
         obfuscatedPreferences.registerOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener)
@@ -287,40 +277,39 @@ class ObfuscatedPreferencesInstrumentedTest {
 
         obfuscatedPreferences.edit().clear().apply()
 
-        var i = 0
 
-        var onSharedPreferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            i++
-            Log.e("qqq", key + i)
-        }
+        val c = 200000
+        val array = Array(c, {false})
 
-        obfuscatedPreferences.registerOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener)
-        obfuscatedPreferences.edit().putBoolean("whatever", true).commit()
-        obfuscatedPreferences.edit().putBoolean("whatever", false).commit()
-        obfuscatedPreferences.edit().putBoolean("whatever", true).commit()
-        onSharedPreferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> }
-
-        //force a blocking GC
-        for (q in 0..3) {
-            val strings = arrayListOf<String>()
-            for (j in 0..300000) {
-                strings.add("21uaeouhctrskhtrsuhkrsuhtkukeouhctrskhtrsuhkrsuhtkuk" + j)
+        for (j in 0 until c) {
+            val listener = SharedPreferences.OnSharedPreferenceChangeListener{_, _ ->
+                array[j] = true
             }
+            obfuscatedPreferences.registerOnSharedPreferenceChangeListener(listener)
         }
 
+
         obfuscatedPreferences.edit().putBoolean("whatever", false).commit()
-        obfuscatedPreferences.edit().putBoolean("whatever", true).commit()
-        obfuscatedPreferences.edit().putBoolean("whatever", false).commit()
+
         try {
-            Thread.sleep(500)
+            Thread.sleep(10000)
         } catch (e: Exception) {
         }
-        Log.e("i" , i.toString())
-        assertTrue(i <= 3)
+
+
+        var gced = 0
+        for (j in 0 until c) {
+            if(!array[j]){
+                gced++
+            }
+        }
+        Log.e("GC statistic", "GCed listener: $gced, notGCed listener: ${c - gced}")
+        Log.e("listener count", obfuscatedPreferences.listenerCount().toString())
+
+        assertTrue(gced > c/10)
         obfuscatedPreferences.edit().clear().apply()
 
     }
-
 
     @Test
     fun testRegister3() {
@@ -363,7 +352,5 @@ class ObfuscatedPreferencesInstrumentedTest {
         obfuscatedPreferences2.edit().clear().apply()
 
     }
-
-
 
 }

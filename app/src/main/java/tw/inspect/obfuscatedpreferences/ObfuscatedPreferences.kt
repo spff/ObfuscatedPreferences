@@ -117,26 +117,34 @@ class ObfuscatedPreferences(
                     ?.run { unBox(decrypt(aesKey, this)) as MutableSet<String?> }
                     ?: defValues
 
+    fun listenerCount() = listeners[sharedPreferences]!!.size
+
     override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
         //synchronizing listeners instead of this is because there might be different
         //ObfuscatedPreferences which are associated with the same SharedPreferences
+        val weakReference = WeakReference<SharedPreferences.OnSharedPreferenceChangeListener>(listener)
+
+        //DON'T PUT STRONG REFERENCE OF listener INSIDE THE SYNCHRONIZED'S SCOPE,
+        //use weakReference.get()!! INSTEAD
+        // => synchronized(listeners, {/*inside a lambda*/})
+        // and the lambda might live longer than the outer function
+
         synchronized(listeners) {
 
             SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
-                WeakReference<SharedPreferences.OnSharedPreferenceChangeListener>(listener).get()
-                        ?.onSharedPreferenceChanged(sharedPreferences, Gson().fromJson(decrypt(aesKey, key)))
+                val referent = weakReference.get()
+                referent?.onSharedPreferenceChanged(sharedPreferences, Gson().fromJson(decrypt(aesKey, key)))
             }.also {
 
 
                 if (listeners[sharedPreferences] == null) {
                     listeners[sharedPreferences] = WeakHashMap()
-                }
-                if (listeners[sharedPreferences]!!.contains(listener)) {
+                } else if (listeners[sharedPreferences]!!.contains(weakReference.get()!!)) {
                     return
                 }
 
                 sharedPreferences.registerOnSharedPreferenceChangeListener(it)
-                listeners[sharedPreferences]!![listener] = it
+                listeners[sharedPreferences]!![weakReference.get()!!] = it
             }
         }
     }
